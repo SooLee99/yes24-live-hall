@@ -1,0 +1,305 @@
+// Users Table
+Table users {
+  id int [pk, increment] // 고유 식별자
+  email varchar(255) [unique, not null] // 이메일 주소
+  password varchar(255) // 암호화된 비밀번호
+  real_name varchar(255) // 실명
+  nickname varchar(50) [unique, not null] // 닉네임
+  profile_image_url varchar(512) // 프로필 이미지 URL (AWS S3에 저장될 예정)
+  birthdate date // 생년월일
+  phone_number varchar(20) [unique, not null] // 전화번호
+  gender enum('M', 'F') // 성별 (M: 남성, F: 여성)
+  
+  authentication_type enum('Kakao', 'Google', 'General') [default: 'General'] // 인증 유형 (카카오, 구글, 일반)
+  account_status enum('active', 'inactive', 'banned', 'deleted') [default: 'active'] // 계정 상태
+  role enum('User', 'Admin') [default: 'User'] // 역할 (User: 일반 사용자, Admin: 관리자)
+  last_login timestamp // 마지막 로그인 시간
+  last_password_modify timestamp // 마지막 비밀번호 변경 시간
+  
+  created_at timestamp [default: `current_timestamp`, not null] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp [default: `current_timestamp`, not null] // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  deleted_at timestamp // 삭제 일시 (Soft Delete 구현)
+  deleted_by int [ref: > users.id] // 삭제한 사용자 (Soft Delete 구현)
+  deleted_reason varchar(255) // 삭제 이유
+
+  Indexes {
+    email [name: 'idx_users_email']
+    nickname [name: 'idx_users_nickname']
+    profile_image_url [name: 'idx_users_profile_image_url']
+    last_login [name: 'idx_users_last_login']
+    last_password_modify [name: 'idx_users_last_password_modify']
+    account_status [name: 'idx_users_account_status']
+    deleted_at [name: 'idx_users_deleted_at']
+  }
+}
+
+// Concerts Table
+Table concerts {
+  id int [pk, increment] // 고유 공연 식별자
+  title varchar(255) [not null] // 공연 제목
+  date_and_time timestamp [not null, unique] // 공연 일정
+  concerts_date date [not null] // 공연 날짜
+  concerts_time time [not null] // 공연 시간
+  poster_url varchar(512) // 포스터 이미지 URL
+  location varchar(255) [not null] // 공연 장소
+  duration int // 공연 관람시간 (분)
+  seat_type varchar(50) // 좌석 유형
+  rating varchar(50) // 공연 등급
+  standing_price int // 스탠딩석 가격
+  seated_price int // 지정석 가격
+  ticket_link varchar(512) // 티켓 예매 링크
+
+  view_count int [default: 0] // 조회수
+  like_count int [default: 0] // 좋아요 수
+  concert_status enum('Upcoming', 'Ongoing', 'Ended', 'Cancelled') [not null] // 공연 상태 (공연 예정, 공연 진행중, 공연 종료, 공연 취소)
+
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자 (시스템/크롤러 ID)
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자 (시스템/크롤러 ID)
+  deleted_at timestamp // 삭제 시각 (Soft Delete 구현)
+  deleted_by int [ref: > users.id] // 삭제한 사용자 (시스템/크롤러 ID)
+  is_deleted boolean [default: false] // 삭제 여부 (Soft Delete 구현)
+
+  Indexes {
+    title [name: 'idx_title']
+    concerts_date [name: 'idx_date']
+    like_count [name: 'idx_like_count']
+    view_count [name: 'idx_view_count']
+  }
+}
+
+// Concert Detail Images Table
+Table concert_detail_images {
+  id int [pk, increment] // 고유 상세 이미지 식별자
+  concert_id int [ref: > concerts.id] // 공연을 참조하는 외래 키: 공연이 삭제되면 이미지도 삭제 (on delete: cascade)
+  image_url varchar(512) [not null] // 상세 이미지 URL
+  image_order int // 이미지 순서: 같은 공연 내에서 이미지의 순서를 나타냄
+
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자: 레코드를 생성한 사용자의 식별자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자: 레코드를 수정한 사용자의 식별자
+  deleted_at timestamp // 삭제 시각 (Soft Delete 구현)
+  deleted_by int [ref: > users.id] // 삭제한 사용자: 레코드를 삭제한 사용자의 식별자
+
+  Indexes {
+    (concert_id, image_order) [unique, name: 'idx_concert_id_image_order']
+    concert_id [name: 'idx_concert_id']
+    image_order [name: 'idx_image_order']
+  }
+}
+
+// Concert Likes Table
+Table concert_likes {
+  id int [pk, increment] // 고유 좋아요 식별자
+  concert_id int [ref: > concerts.id] // 공연을 참조하는 외래키: 공연이 삭제되면 좋아요도 삭제 (on delete: cascade)
+  user_id int [ref: > users.id] // 사용자를 참조하는 외래키: 사용자가 삭제되면 좋아요도 삭제 (on delete: cascade)
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+
+  Indexes {
+    (concert_id, user_id) [unique, name: 'idx_concert_id_user_id']
+    concert_id [name: 'idx_concert_id']
+    user_id [name: 'idx_user_id']
+  }
+}
+
+// Tickets Table
+Table tickets {
+  id int [pk, increment] // 고유 티켓 식별자
+  user_id int [ref: > users.id] // 사용자를 참조하는 외래키
+  concert_id int [ref: > concerts.id] // 공연을 참조하는 외래키
+  payment_id int [ref: > payment_history.id] // 결제 기록을 참조하는 외래키
+
+  seat_type varchar(50) // 좌석 타입
+  seat_number varchar(50) // 좌석 번호
+  purchase_price int // 구매 가격
+  purchase_timestamp timestamp [default: `current_timestamp`] // 구매 일시
+  ticket_status varchar [note: "'Active', 'Cancelled', 'Used'"] // 티켓 상태
+
+  qr_code_key varchar(255) // QR 코드 값
+  qr_code_created_at timestamp // QR 코드 생성 일시
+
+  Indexes {
+    concert_id [name: 'idx_concert_id']
+    user_id [name: 'idx_user_id']
+    payment_id [name: 'idx_payment_id']
+    qr_code_key [name: 'idx_qr_code_key']
+  }
+}
+
+// Payment History Table: 결제 정보 저장
+Table payment_history {
+  id int [pk, increment] // 고유 결제 식별자
+  user_id int [ref: > users.id] // 사용자를 참조하는 외래키
+  concert_id int [ref: > concerts.id] // 공연을 참조하는 외래키
+  amount int [not null] // 결제 금액
+  payment_method varchar // 결제 방법 ('CreditCard', 'Paypal', 'BankTransfer')
+  payment_status varchar [not null] // 결제 상태 ('Success', 'Failed', 'Refunded')
+  created_at timestamp [default: `current_timestamp`] // 결제 시각
+  modified_at timestamp // 수정 시각
+  
+  Indexes {
+    user_id [name: 'idx_user_id'] // 사용자 ID에 대한 인덱스
+    concert_id [name: 'idx_concert_id'] // 공연 ID에 대한 인덱스
+    payment_status [name: 'idx_payment_status'] // 결제 상태에 대한 인덱스
+  }
+}
+
+// Notification Table: 알림 정보 저장
+Table notifications {
+  id int [pk, increment] // 고유 알림 식별자
+  user_id int [ref: > users.id, note: 'ON DELETE CASCADE'] // 알림 수신자를 참조하는 외래키
+  message text [not null] // 알림 내용
+  is_read boolean [default: false] // 알림 읽음 상태
+  read_at timestamp // 알림을 읽은 시간
+  related_concert_id int [ref: > concerts.id] // 관련된 공연을 참조하는 외래키 (optional)
+  related_ticket_id int [ref: > tickets.id] // 관련된 티켓을 참조하는 외래키 (optional)
+  created_at timestamp [default: `current_timestamp`] // 알림 생성 시간
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  delete_at timestamp // 삭제 일시
+  delete_by int [ref: > users.id] // 삭제한 사용자
+  
+  Indexes {
+    user_id [name: 'idx_user_id'] // 사용자 ID에 대한 인덱스
+    // Note: The type and status indexes are not in the original SQL, so they are commented out.
+    // type [name: 'idx_type'] // 알림 유형에 대한 인덱스
+    // status [name: 'idx_status'] // 알림 상태에 대한 인덱스
+    related_concert_id [name: 'idx_related_concert_id'] // 관련된 공연 ID에 대한 인덱스
+    related_ticket_id [name: 'idx_related_ticket_id'] // 관련된 티켓 ID에 대한 인덱스
+  }
+}
+
+// ConcertReviews Table: 사용자의 공연 후기를 저장하는 테이블
+Table concert_reviews {
+  id int [pk, increment] // 고유 리뷰 식별자
+  user_id int [ref: > users.id, note: 'ON DELETE CASCADE'] // 리뷰 작성자를 참조하는 외래키
+  concert_id int [ref: > concerts.id, note: 'ON DELETE CASCADE'] // 관련된 공연을 참조하는 외래키
+  content text [not null] // 리뷰 내용
+  rating int [note: 'CHECK (rating >= 1 AND rating <= 5)'] // 공연에 대한 평점
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  deleted_at timestamp // 삭제 시각
+  deleted_by int [ref: > users.id] // 삭제한 사용자
+  is_deleted boolean [default: false] // 삭제 여부
+
+  Indexes {
+    user_id [name: 'idx_user_id'] // 사용자 ID에 대한 인덱스
+    concert_id [name: 'idx_concert_id'] // 공연 ID에 대한 인덱스
+    rating [name: 'idx_rating'] // 평점에 대한 인덱스
+  }
+}
+
+
+// Reports Table: 사용자가 다른 사용자를 신고할 때 사용되는 테이블
+Table reports {
+  id int [pk, increment] // 고유 신고 식별자
+  reporter_id int [ref: > users.id] // 신고한 사용자를 참조하는 외래키
+  reported_user_id int [ref: > users.id] // 신고당한 사용자를 참조하는 외래키
+  reason text // 신고 이유
+  status varchar [note: 'ENUM: Pending, Resolved, Dismissed'] // 신고 상태
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  deleted_at timestamp // 삭제 일시
+  deleted_by int [ref: > users.id] // 삭제한 사용자
+  
+  Indexes {
+    reporter_id [name: 'idx_reporter_id']
+    reported_user_id [name: 'idx_reported_user_id']
+    status [name: 'idx_status']
+  }
+  
+  // You'll need to add this if you intend to include reported_product_id
+  // reported_product_id int 
+  // UNIQUE(reporter_id, reported_user_id, reported_product_id)
+  // INDEX idx_reported_product_id (reported_product_id)
+}
+
+// Blocks Table: 사용자가 다른 사용자를 차단할 때 사용되는 테이블
+Table blocks {
+  id int [pk, increment] // 고유 차단 식별자
+  blocker_id int [ref: > users.id] // 차단한 사용자를 참조하는 외래키
+  blocked_user_id int [ref: > users.id] // 차단당한 사용자를 참조하는 외래키
+  reason text // 차단 이유
+  status varchar [default: 'Active', note: 'ENUM: Active, Inactive'] // 차단 상태
+  created_at timestamp [default: `current_timestamp`] // 생성 일시
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  deleted_at timestamp // 삭제 일시
+  deleted_by int [ref: > users.id] // 삭제한 사용자
+  
+  Indexes {
+    blocker_id [name: 'idx_blocker_id']
+    blocked_user_id [name: 'idx_blocked_user_id']
+  }
+}
+
+Table transaction_chats {
+  id int [pk, increment]
+  chatroom_id int [ref: > chatrooms.id]
+  sender_id int [ref: > users.id]
+  receiver_id int [ref: > users.id]
+  message_type varchar
+  message text
+  read_status boolean [default: false]
+  read_at timestamp
+  created_at timestamp [default: 'current_timestamp']
+  created_by int [ref: > users.id]
+  modified_at timestamp
+  modified_by int [ref: > users.id]
+  deleted_at timestamp
+  deleted_by int [ref: > users.id]
+  status varchar
+  
+  Indexes {
+    chatroom_id [name: 'idx_chatroom_id']
+    sender_id [name: 'idx_sender_id']
+    receiver_id [name: 'idx_receiver_id']
+    status [name: 'idx_status']
+    read_status [name: 'idx_read_status']
+  }
+}
+
+// Chatrooms Table: 채팅방 정보를 저장하는 테이블
+Table chatrooms {
+  id int [pk, increment] // 고유 채팅방 식별자
+  last_read_message_id int [ref: > transaction_chats.id] // 마지막으로 읽은 메시지 ID
+  last_message text // 마지막 메시지 요약
+  created_at timestamp [not null] // 생성 일시, Default is current_timestamp
+  created_by int [ref: > users.id] // 생성한 사용자
+  modified_at timestamp // 수정 일시
+  modified_by int [ref: > users.id] // 수정한 사용자
+  is_modified boolean [default: false] // 수정 여부
+  deleted_at timestamp // 삭제 일시
+  deleted_by int [ref: > users.id] // 삭제한 사용자
+  is_deleted boolean [default: false] // 삭제 여부
+  
+  Indexes {
+    last_read_message_id [name: 'idx_last_read_message_id']
+  }
+}
+
+Table chatroom_participants {
+  id SERIAL [pk, note: '고유 참여자 식별자: 각 참여자의 고유한 ID']
+  chatroom_id INT [ref: > chatrooms.id, note: '채팅방을 참조하는 외래키: 어떤 채팅방에 참여했는지']
+  user_id INT [ref: > users.id, note: '참여한 사용자를 참조하는 외래키: 누가 참여했는지']
+  status ENUM('joined', 'left') [default: 'joined', not null, note: '참여 상태: 현재 참여 중인지, 나간 상태인지']
+  last_read_message_id INT [ref: > transaction_chats.id, note: '마지막으로 읽은 메시지 ID: 마지막으로 읽은 메시지의 ID']
+  joined_at TIMESTAMP [default: 'CURRENT_TIMESTAMP', not null, note: '참여한 시간: 언제 참여했는지']
+  left_at TIMESTAMP [note: '나간 시간: 언제 나갔는지 (상태가 \'left\'인 경우)']
+
+  indexes {
+    (chatroom_id, status) [note: '채팅방과 상태에 대한 복합 인덱스: 특정 채팅방에서의 참여자 상태를 빠르게 찾을 수 있게 함']
+    (user_id, status) [note: '사용자와 상태에 대한 복합 인덱스: 특정 사용자의 참여 상태를 빠르게 찾을 수 있게 함']
+    (last_read_message_id) [note: '마지막 읽은 메시지에 대한 인덱스: 마지막으로 읽은 메시지를 빠르게 찾을 수 있게 함']
+  }
+}
