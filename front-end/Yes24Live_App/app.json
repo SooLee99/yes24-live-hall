@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Yes24Live_App",
+    "slug": "Yes24Live_App",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/setting/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/setting/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/setting/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./src/assets/setting/favicon.png"
+    }
+  }
+}
